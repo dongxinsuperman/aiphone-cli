@@ -1,0 +1,13 @@
+{
+  "submissionName": "cli-smoke-demo",
+  "cacheMode": "off",
+  "retryMax": 0,
+  "items": [
+    {
+      "caseId": "cli_demo_001",
+      "caseName": "CLI 冒烟示例",
+      "runContent": "打开设置并进入关于本机页面",
+      "platforms": ["ios"]
+    }
+  ]
+}

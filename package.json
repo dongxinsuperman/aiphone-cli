@@ -1,0 +1,28 @@
+{
+  "name": "aiphone-cli",
+  "version": "0.3.0",
+  "description": "ai-phone 对外 API 命令行工具",
+  "license": "MIT",
+  "bin": {
+    "aiphone": "bin/aiphone.js"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "docs",
+    "examples",
+    "AGENTS.md",
+    "OPENCLAW_SKILL.md",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "commander": "^13.1.0"
+  },
+  "private": true
+}

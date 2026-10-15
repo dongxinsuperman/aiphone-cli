@@ -1,0 +1,18 @@
+{
+  "submissionName": "scenario-all-platforms",
+  "cacheMode": "off",
+  "items": [
+    {
+      "caseId": "case_001",
+      "caseName": "示例用例 1",
+      "runContent": "打开设置并进入关于本机页面",
+      "platforms": ["android", "ios", "harmony"]
+    },
+    {
+      "caseId": "case_002",
+      "caseName": "示例用例 2",
+      "runContent": "返回桌面并打开相册",
+      "platforms": ["android", "ios", "harmony"]
+    }
+  ]
+}

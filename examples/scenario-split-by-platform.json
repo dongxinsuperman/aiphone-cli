@@ -1,0 +1,20 @@
+{
+  "submissionName": "scenario-split-by-platform",
+  "items": [
+    {
+      "caseId": "case_001",
+      "runContent": "用例 1",
+      "platforms": ["android"]
+    },
+    {
+      "caseId": "case_002",
+      "runContent": "用例 2",
+      "platforms": ["ios"]
+    },
+    {
+      "caseId": "case_003",
+      "runContent": "用例 3",
+      "platforms": ["harmony"]
+    }
+  ]
+}

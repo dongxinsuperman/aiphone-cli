@@ -1,0 +1,21 @@
+{
+  "submissionName": "scenario-full-options",
+  "callbackUrl": "https://example.com/aiphone/callback",
+  "cacheMode": "off",
+  "retryMax": 1,
+  "functionMapContext": "可选：本批功能入口、测试账号、业务术语或异常处理说明",
+  "items": [
+    {
+      "caseId": "demo_001",
+      "caseName": "进入关于本机",
+      "runContent": "打开设置并进入关于本机页面",
+      "platforms": ["android", "ios"],
+      "cacheMode": "v1",
+      "functionMapContext": "可选：本 case 才需要的补充入口、测试数据或业务说明；会与批次级合并注入",
+      "deviceAliasPools": {
+        "android": ["学习工具-红米K70"],
+        "ios": null
+      }
+    }
+  ]
+}
