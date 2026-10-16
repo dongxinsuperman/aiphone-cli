@@ -130,6 +130,8 @@ vm list 查询已有实例及数量，支持平台/别名/Agent/状态/分页；
 只有 schedulable=true 才报告可接单。失败保留已创建 ID，不重复 create；不自动删设备或改派宿主。
 原有 devices/submissions 主流程不变。内部虚拟机管理请求沿用后台 Bearer，默认 dev，可用 AIPHONE_INTERNAL_TOKEN 覆盖；公开请求不追加此头，不修改服务端权限。
 
+新版 Server 有 lifecycle 时以它的机器状态和 actions 为准，历史 error 单独展示；state:null 表示无法确认，不能回退原始 state。只有完全缺少 lifecycle 的旧 Server 才走旧判断。list --state unknown 查询未知实例。命令等待仍关联本次操作结果，不能用后来出现的 stopped 覆盖一次失败的 stop 并继续 restart。
+
 ## 11. 安装包与分发安装
 
 `aiphone apps --help` / `aiphone apps fields`，详见 [docs/app-install.md](docs/app-install.md)。

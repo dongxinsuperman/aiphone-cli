@@ -82,6 +82,18 @@ iOS health 仅查询目录健康，不表示设备可用。Android device-brands
 
 ## Agent 回复与失败处理
 
+### 新旧 Server 的状态口径
+
+Server 返回完整 `lifecycle` 时，CLI 使用它的 `state`、`agent_online`、`actions`、`notice`、`error`；不再由原始 `state:error` 推断机器已停止。列表计数和 --state 筛选按统一机器状态处理，无法确认时用 `unknown` 筛选，返回的 lifecycle_state 保留 null。查询中原始 state 不改写，方便诊断。
+
+只有实例响应完全没有 lifecycle 字段时才使用旧 Server 的原判断。字段存在但为 null、结构不完整或类型错误时，不退回原始状态猜测；查询标记 invalid，启停等操作被阻止。完整对象里的 state:null 是权威的“机器状态无法确认”，不是旧 Server。
+
+已有实例操作遵循 Server 的 actions；在线未知状态若允许普通启动，可调用原启动入口，由 Server 做原生核验。显式 stop 保留后台“已停止实例也可幂等核验”的接口例外，其归属和占用限制仍由 Server 校验。restart 不猜测未知实例，只有已确认 running/stopped 才执行。
+
+`lifecycle.error` 表示历史操作错误，不等于机器当前状态。独立 wait --until stopped 可等待机器事实，但 start/stop/dispatch/create --start/restart 的命令等待仍关联本次 request_id 和 operation.outcome：本次操作失败或被替换就中止，即使机器后来停止也不继续 restart。新 Server 未提供本次操作 ID 时不能宣称成功；旧 Server 无此元数据仍保持兼容。
+
+本地 --timeout 仍沿用现有参数，不改变 Server 操作预算；本地等待超时不会取消、重试或替换 Server 操作。此次仅适配 CLI，没有更改接口或新增后台重试流程。
+
 - 用户未提供别名：要求提供，不能代填。缺预设：先查 catalog；多匹配列出具体规格，让用户选。缺版本：展示该预设兼容系统，不随意拼装。
 - 用户只问「有没有」时只查目录。没有精确匹配就说没有，不替换成相近机型创建。
 - phase=configured：只说「配置已创建，尚未启动」。phase=start_requested/sent=true：只说「启动请求已下发」。只有 schedulable=true 才报告可接单。
