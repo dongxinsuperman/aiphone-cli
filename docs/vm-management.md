@@ -32,14 +32,14 @@ aiphone vm ios create --alias 苹果回归01 --preset "iPhone 17" --os 26.0 --st
 三端都有 `catalog`（搜索/分页）、`preset <精确ID或名称>`（详情）、`systems <精确ID或名称>`（兼容系统）。
 `catalog` 支持 `--q`、`--category`、`--os`、`--offset`、`--limit`；Android 另支持 `--brand`、`--resolution`、`--ram`。
 返回 items 与 page.total/returned/has_more。Android 保留服务端源目录计数，另标 omitted_invalid_rows；无法受控创建的异常行不作为候选。
-Android 详情区分真机参考 reference_spec 和固定模拟器配置 vm_spec，不声称复刻厂商 ROM。
+Android 详情区分真机参考 reference_spec 和默认模拟器配置 vm_spec，不声称复刻厂商 ROM。
 按预设 ID 查询使用当前目录；Android 暂无单台画像查询接口，ID 查找可能读取多页，不缓存旧目录。
 
 | 平台 | 预设与系统约束 | 固定参数 |
 |---|---|---|
-| Android | 仅后台 verified 且有可创建 API 版本的设备画像；仅可选择画像 sdk_versions 中且后台版本菜单支持的系统。支持 Android 名称、版本号或 api-N 标识。 | 屏幕宽高/密度取画像；参考内存最高 4GB、缺省 4GB；4 核、8GB 存储、Google APIs、ABI 自动、host GPU、竖屏、无代理、默认传感器、后台既有 discard_changes 策略。覆盖策略和自定义模式不开放为第一版创建预设。 |
+| Android | 仅后台 verified 且有可创建 API 版本的设备画像；仅可选择画像 sdk_versions 中且后台版本菜单支持的系统。支持 Android 名称、版本号或 api-N 标识。 | 屏幕宽高/密度取画像；默认内存 3GB，可用 --memory 指定 2–32 GB 整数；4 核、8GB 存储、Google APIs、ABI 自动、host GPU、竖屏、无代理、默认传感器、后台既有 discard_changes 策略。覆盖策略和自定义模式不开放为第一版创建预设。 |
 | iOS | 沿用后台 Apple 机型目录及 min/max runtime 过滤；先选机型，再选择兼容 runtime，不任意组合。 | Apple 机型原生规格，不提供额外硬件配置。 |
-| 鸿蒙 | 仅支持有 supported_image_ids 且存在创建方法的官方机型；系统镜像必须同设备类型、creatable 且在兼容表内。 | 机型屏幕参数、4GB RAM、8GB 存储、完整冷启动、折叠屏初始展开。 |
+| 鸿蒙 | 仅支持有 supported_image_ids 且存在创建方法的官方机型；系统镜像必须同设备类型、creatable 且在兼容表内。 | 机型屏幕参数、默认 3GB RAM，可用 --memory 指定 2–32 GB 整数、8GB 存储、完整冷启动、折叠屏初始展开。 |
 
 服务端最终校验仍保留；不支持的组合在写入前拒绝。后台菜单有约束时 CLI 也应用，不因服务端未拦而放开。
 本版不构建「当前 Agent 能创建的预设列表」，不逐预设实时探查。目录兼容和宿主可执行是两件事。
@@ -104,3 +104,5 @@ Server 返回完整 `lifecycle` 时，CLI 使用它的 `state`、`agent_online`�
 - 新 vm 命令成功/失败均返回 JSON，失败有非零退出码。没有修改原有命令的输出契约。
 
 0.3.0 已通过本地模拟服务与契约验证，并在本机 iOS Simulator 完成创建启动、安装 App、执行任务、停机的真实链路验收；不代表所有平台或线上环境均已实测。
+
+Android、鸿蒙创建可用 `--memory 2` 指定 2GB，省略时固定为 3GB，不跟随机型参考内存。该参数仅用于新建，不调整已有实例。iOS 不支持此参数；其他底层参数仍固定，禁止完整 JSON。

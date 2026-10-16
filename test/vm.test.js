@@ -178,7 +178,7 @@ it("catalog search has counts, pagination, reference specs and preset-specific s
   assert.equal(search.json.page.total, 2);
   assert.equal(search.json.page.has_more, true);
   assert.equal(search.json.items[0].reference_spec.ram_mb, 8192);
-  assert.equal(search.json.items[0].vm_spec.ram_mb, 4096);
+  assert.equal(search.json.items[0].vm_spec.ram_mb, 3072);
   const next = await invoke(["vm", "android", "catalog", "--q", "13", "--brand", "xiaomi", "--offset", "1", "--limit", "1"]);
   assert.equal(next.json.items[0].name, "Xiaomi 13 Pro");
   const detail = await invoke(["vm", "android", "preset", "abcdef123456"]);
@@ -200,13 +200,13 @@ it("controlled plans fix hardware and preserve backend presets on all three plat
     assert.equal(r.json.availability_checked, false);
     if (p === "android") {
       assert.equal(r.json.payload.profile_ref_type, "real_device");
-      assert.equal(r.json.payload.config_json.performance.ram_mb, 4096);
+      assert.equal(r.json.payload.config_json.performance.ram_mb, 3072);
       assert.equal(r.json.payload.density, 480);
       assert.equal(r.json.payload.api_level, 33);
       assert.equal(r.json.payload.config_json.network.http_proxy, "");
     }
     if (p === "ios") assert.deepEqual(r.json.payload, { alias: "test-ios", device_type: "type.iphone17", runtime: "runtime.ios26" });
-    if (p === "harmony") { assert.equal(r.json.payload.memory_gb, 4); assert.equal(r.json.payload.boot_mode, "cold"); assert.equal(r.json.payload.fold_state, "unfolded"); }
+    if (p === "harmony") { assert.equal(r.json.payload.memory_gb, 3); assert.equal(r.json.payload.boot_mode, "cold"); assert.equal(r.json.payload.fold_state, "unfolded"); }
   }
   assert.ok(calls.every((c) => c.method === "GET"));
 }));
@@ -395,4 +395,27 @@ it("legacy commands keep their routes, methods, passthrough payload and JSON out
     assert.equal(r.code, 0, r.stdout + r.stderr);
   }
   assert.equal(calls.length, count);
+}));
+
+ it("memory overrides reach controlled payloads and invalid values never make requests", async () => fixture(async ({ invoke, calls }) => {
+  for (const p of ["android", "harmony"]) {
+    for (const memory of [2, 3, 4, 32]) {
+      const result = await invoke(createArgs(p, "--memory", String(memory)));
+      assert.equal(result.code, 0, result.stdout + result.stderr);
+      const body = calls.filter(c => c.method === "POST").at(-1).body;
+      assert.equal(p === "android" ? body.config_json.performance.ram_mb : body.memory_gb, p === "android" ? memory * 1024 : memory);
+    }
+    for (const memory of ["0", "1", "33", "-1", "2.5", "NaN", "3GB"]) {
+      const before = calls.length;
+      const result = await invoke(createArgs(p, "--memory", memory));
+      assert.notEqual(result.code, 0);
+      assert.equal(calls.length, before);
+    }
+    const preview = await invoke(createArgs(p, "--memory", "2", "--dry-run"));
+    assert.equal(preview.code, 0);
+    assert.equal(p === "android" ? preview.json.preset.vm_spec.ram_mb : preview.json.preset.vm_spec.memory_gb, p === "android" ? 2048 : 2);
+  }
+  const before = calls.length;
+  assert.notEqual((await invoke(createArgs("ios", "--memory", "3"))).code, 0);
+  assert.equal(calls.length, before);
 }));
