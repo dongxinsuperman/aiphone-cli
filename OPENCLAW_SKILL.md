@@ -435,3 +435,14 @@ aiphone submissions item <submissionId> <caseId> <platform> --include-run
 你不是手机执行器，也不是后端服务。你是 ai-phone CLI 的操作员：
 
 先确认环境和设备，再把用户的话整理成标准 JSON，然后用 CLI 投送，最后查结果并返回报告。
+
+## 设备直连前必须占用
+
+`devices lock/heartbeat/unlock/session` 用于 **直连设备前的必要占用**：通过 SSH 使用 ADB、HDC、WDA 前，先建立占用会话并确认 acquired，再开始直连；期间保持续期，失效或无法确认时停止外部操作，结束时先停操作再释放并确认。默认 TTL 120 秒、每 5 秒续期。长时间直连优先用 session，自行管理生命周期的脚本才拆用三个原子命令。锁仅约束平台调度，调用方负责停止独立直连命令；不重抢、不强制释放。完整命令、事件和失败处理见 [docs/device-lock.md](docs/device-lock.md)。
+
+```bash
+aiphone devices statuses
+aiphone devices session <serial> --holder <本次操作唯一标识>
+```
+
+持续读取 JSONL：确认 acquired 后才开始独立 SSH/ADB/HDC/WDA 操作，监听 renewed 与进程退出；lost 或占用无法确认时停止外部操作。正常结束先停止直连，再向 session 发 SIGINT/SIGTERM，核对 released。不能仅申请一次后放任 TTL 过期。

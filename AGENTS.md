@@ -139,3 +139,7 @@ upload 仅上传并返回 package ID；先 packages eligible 查询可安装设�
 install/retry 可用 --wait；tasks get 原样查询，tasks wait 等待并检查逐台 success。done 可能含失败；等待失败保留已知 task ID，不自动重试。
 APK、HAP/App Pack、真机 IPA、Simulator .app.zip 各走现有平台通道。卸载仍用 devices uninstall。
 不改变现有投递流程，不新增自动建机、安装、执行、销毁编排。
+
+## 设备占用管理
+
+`devices lock/heartbeat/unlock/session` 用于 **直连设备前的必要占用**：通过 SSH 使用 ADB、HDC、WDA 前，先建立占用会话并确认 acquired，再开始直连；期间保持续期，失效或无法确认时停止外部操作，结束时先停操作再释放并确认。默认 TTL 120 秒、每 5 秒续期。长时间直连优先用 session，自行管理生命周期的脚本才拆用三个原子命令。锁仅约束平台调度，调用方负责停止独立直连命令；不重抢、不强制释放。完整命令、事件和失败处理见 [docs/device-lock.md](docs/device-lock.md)。

@@ -192,6 +192,7 @@ devicesCmd
     }),
   );
 
+require("../lib/device-lock").registerDeviceLockCommands(devicesCmd);
 require("../lib/vm-commands").registerVmCommands(program);
 require("../lib/app-install").registerAppCommands(program);
 
