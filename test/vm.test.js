@@ -7,10 +7,13 @@ const path = require("node:path");
 const { spawn } = require("node:child_process");
 
 const BASES = { android: "/api/internal/vm", ios: "/api/internal/ios-sim", harmony: "/api/internal/harmony-vm" };
+const DUO = "com.apple.CoreSimulator.SimDeviceType.iPhone-Duo";
+const DUO_RUNTIME = "com.apple.CoreSimulator.SimRuntime.iOS-27-2-iPhone19-4";
 const androidProfiles = [
   { id: "abcdef123456", marketing_name: "Xiaomi 13", brand: "xiaomi", model_code: "2211133C", form_factor: "Phone", screen_width: 1080, screen_height: 2400, densities: ["480"], ram_mb: 8192, sdk_versions: ["33", "35"], verification_status: "verified" },
   { id: "abcdef123457", marketing_name: "Xiaomi 13 Pro", brand: "xiaomi", form_factor: "Phone", screen_width: 1440, screen_height: 3200, densities: ["560"], ram_mb: 12288, sdk_versions: ["33"], verification_status: "verified" },
   { id: "abcdef123458", marketing_name: "Pending Phone", sdk_versions: ["35"], verification_status: "pending" },
+  { id: "pixel-fold", marketing_name: "Pixel Fold", sdk_versions: ["36"], foldable_api_level: 37, verification_status: "verified" },
 ];
 const iosCatalog = {
   device_types: [
@@ -18,11 +21,14 @@ const iosCatalog = {
     { identifier: "type.iphone16", name: "iPhone 16", product_family: "iPhone", min_runtime_version: 1179648 },
     { identifier: "type.iphone17", name: "iPhone 17", product_family: "iPhone", min_runtime_version: 1703936 },
     { identifier: "type.ipad", name: "iPad Pro", product_family: "iPad", min_runtime_version: 1703936 },
+    { identifier: DUO, name: "iPhone Duo", product_family: "iPhone", min_runtime_version: 1769472, runtime_identifiers: [DUO_RUNTIME] },
   ],
   official_runtimes: [
     { identifier: "runtime.ios18", name: "iOS 18.0", version: "18.0" },
     { identifier: "runtime.ios26", name: "iOS 26.0", version: "26.0" },
     { identifier: "runtime.beta", name: "iOS 27 beta", version: "27.0" },
+    { identifier: "runtime.ios27", name: "iOS 27.2", version: "27.2" },
+    { identifier: DUO_RUNTIME, name: "iOS 27.2 · iPhone Duo", version: "27.2", only_device_type: DUO },
   ],
 };
 const harmonyCatalog = {
@@ -31,11 +37,13 @@ const harmonyCatalog = {
     { id: "phone-new", device_type: "Phone", os_version: "HarmonyOS 6.0(20)", abi: "auto", creatable: true },
     { id: "phone-disabled", device_type: "Phone", os_version: "HarmonyOS 7.0(21)", creatable: false },
     { id: "tablet", device_type: "Tablet", os_version: "HarmonyOS 6.0(20)", abi: "auto", creatable: true },
+    { id: "foldable", device_type: "Foldable", os_version: "HarmonyOS 7.0(26)", abi: "auto", creatable: true },
   ],
   screen_profiles: [
     { id: "p1", name: "Default Phone", device_type: "Phone", supported_image_ids: ["phone-new", "phone-old"], create_methods: { "phone-new": "default", "phone-old": "default" } },
     { id: "p2", name: "Old Phone", device_type: "Phone", supported_image_ids: ["phone-old"], create_methods: { "phone-old": "screen_profile" } },
     { id: "t1", name: "Default Tablet", device_type: "Tablet", supported_image_ids: ["tablet"], create_methods: { tablet: "default" } },
+    { id: "fold1", name: "Mate X7", device_type: "Foldable", supported_image_ids: ["foldable"], create_methods: { foldable: "screen_profile" }, outer_width: 1080, outer_height: 2444 },
   ],
 };
 
@@ -71,13 +79,22 @@ async function fixture(action) {
       const q = (url.searchParams.get("q") || "").toLowerCase();
       const rows = androidProfiles.filter((r) => !q || [r.marketing_name, r.model_code].some((v) => String(v || "").toLowerCase().includes(q)))
         .filter((r) => !url.searchParams.has("brand") || r.brand === url.searchParams.get("brand"))
-        .filter((r) => !url.searchParams.has("sdk") || r.sdk_versions.includes(url.searchParams.get("sdk")));
+        .filter((r) => !url.searchParams.has("sdk") || r.sdk_versions.includes(url.searchParams.get("sdk")) || String(r.foldable_api_level) === url.searchParams.get("sdk"));
       const offset = Number(url.searchParams.get("offset") || 0), limit = Number(url.searchParams.get("limit") || 30);
       return send({ items: rows.slice(offset, offset + limit), page: { offset, limit, total: rows.length, has_more: offset + limit < rows.length } });
     }
     if (suffix === "/instances" && req.method === "GET") return send([...state.records.entries()].filter(([key]) => key.startsWith(platform + "/")).map(([, vm]) => vm));
     if (suffix === "/instances" && req.method === "POST") {
-      const vm = { ...body, ...state.createOverride, id: `vm${state.records.size + 1}`, state: "draft" };
+      const config = { ...body.config_json };
+      if (platform === "android" && body.fold_state || platform === "harmony" && body.fold_state === "folded") {
+        config.fold = { initial_state: body.fold_state };
+      }
+      if (platform === "harmony" && body.initial_rotation) config.initial_rotation = body.initial_rotation;
+      if (platform === "ios") {
+        if (body.initial_orientation) config.initial_orientation = body.initial_orientation;
+        if (body.initial_fold_state) config.initial_fold_state = body.initial_fold_state;
+      }
+      const vm = { ...body, config_json: config, ...state.createOverride, id: `vm${state.records.size + 1}`, state: "draft" };
       state.records.set(keyFor(platform, vm.id), vm);
       if (state.disconnectOnCreate) return req.socket.destroy();
       return send(vm, 201);
@@ -209,6 +226,53 @@ it("controlled plans fix hardware and preserve backend presets on all three plat
     if (p === "harmony") { assert.equal(r.json.payload.memory_gb, 3); assert.equal(r.json.payload.boot_mode, "cold"); assert.equal(r.json.payload.fold_state, "unfolded"); }
   }
   assert.ok(calls.every((c) => c.method === "GET"));
+}));
+
+it("creates three-platform startup posture through the existing endpoints", async () => fixture(async ({ invoke, calls }) => {
+  for (const [platform, preset, direction, fold, expected] of [
+    ["android", "Pixel Fold", "landscape_right", "unfolded", { api_level: 37, orientation: "landscape_right", fold_state: "unfolded" }],
+    ["ios", "iPhone Duo", "landscape_left", "folded", { runtime: DUO_RUNTIME, initial_orientation: "landscape_left", initial_fold_state: "folded" }],
+    ["harmony", "Mate X7", "3", "folded", { initial_rotation: 3, fold_state: "folded" }],
+  ]) {
+    const r = await invoke(["vm", platform, "create", "--alias", `posture-${platform}`, "--preset", preset,
+      "--orientation", direction, "--fold-state", fold]);
+    assert.equal(r.code, 0, r.stdout + r.stderr);
+    const call = calls.at(-1);
+    assert.equal(call.path, `${BASES[platform]}/instances`);
+    assert.equal(call.method, "POST");
+    for (const [field, value] of Object.entries(expected)) assert.equal(call.body[field], value);
+  }
+  const ordinary = await invoke(["vm", "android", "create", "--alias", "old-default", "--preset", "Pixel Fold", "--dry-run"]);
+  assert.equal(ordinary.code, 0, ordinary.stdout);
+  assert.equal(ordinary.json.payload.api_level, 36);
+  assert.equal(ordinary.json.payload.orientation, "portrait");
+  assert.equal(ordinary.json.payload.fold_state, undefined);
+  const catalog = await invoke(["vm", "android", "catalog", "--os", "api-37"]);
+  assert.ok(catalog.json.items.some((preset) => preset.id === "pixel-fold" && preset.foldable_api_level === 37));
+}));
+
+it("rejects unsupported folds and hides the Duo-only runtime from other iOS models", async () => fixture(async ({ invoke, calls }) => {
+  for (const platform of Object.keys(BASES)) {
+    const r = await invoke(createArgs(platform, "--fold-state", "folded"));
+    assert.equal(r.json.error.code, "unsupported_fold_state", r.stdout);
+  }
+  const android = await invoke(["vm", "android", "create", "--alias", "bad-fold", "--preset", "Pixel Fold", "--os", "api-36", "--fold-state", "folded"]);
+  assert.equal(android.json.error.code, "incompatible_system");
+  const ios = await invoke(["vm", "ios", "systems", "iPhone 17"]);
+  assert.ok(ios.json.systems.some((system) => system.id === "runtime.ios27"));
+  assert.ok(ios.json.systems.every((system) => system.id !== DUO_RUNTIME));
+  assert.ok(calls.every((call) => call.method === "GET"));
+}));
+
+it("retains the draft ID and skips launch if the Server drops explicitly requested posture", async () => fixture(async ({ invoke, state, calls }) => {
+  state.createOverride = { config_json: {} };
+  const r = await invoke(["vm", "ios", "create", "--alias", "posture-mismatch", "--preset", "iPhone Duo",
+    "--orientation", "landscape_right", "--fold-state", "folded", "--start"]);
+  assert.equal(r.code, 1);
+  assert.equal(r.json.error.code, "posture_mismatch");
+  assert.equal(r.json.error.instance.id, "vm1");
+  assert.deepEqual(r.json.error.mismatches.map(({ field }) => field), ["initial_orientation", "initial_fold_state"]);
+  assert.deepEqual(calls.filter(({ method }) => method === "POST").map(({ path }) => path), ["/api/internal/ios-sim/instances"]);
 }));
 
 it("create only saves config unless start is requested; lifecycle routes remain platform-specific", async () => fixture(async ({ invoke, calls }) => {

@@ -124,7 +124,7 @@ aiphone submissions reports <submissionId>   # 终态后拿汇总 + 单条报告
 ## 10. 三端虚拟机：受控创建与已有实例管理
 
 `aiphone vm --help` / `aiphone vm fields`。完整策略见 [docs/vm-management.md](docs/vm-management.md)。
-创建接受平台、外部必填别名、后台设备预设和兼容系统版本；Android/鸿蒙另支持 --memory（2–32 GB 整数，默认 3GB），仅新建生效。先 catalog 搜索，再 preset/systems 查规格和合法组合；不生成别名、不自动选型、不接受完整 JSON 或任意底层参数。
+创建接受平台、外部必填别名、后台设备预设和兼容系统版本。可选 `--orientation` 和受支持机型的 `--fold-state`，取值用各平台的 create --help 查询。Android/鸿蒙另支持 --memory（2–32 GB 整数，默认 3GB），仅新建生效。先 catalog 搜索，再 preset/systems 查规格和合法组合；不生成别名、不自动选型、不接受完整 JSON 或任意底层参数。
 用户仅要求创建时使用 create；明确启动需求才加 --start --wait，沿用后台创建后探查流程，不预先枚举所有 Agent 支持的设备。
 vm list 查询已有实例及数量，支持平台/别名/Agent/状态/分页；get/status/start/stop/restart/delete 按 ID 或精确别名操作。restart 停止并确认后才启动同一实例，被占用或失败就中止。
 只有 schedulable=true 才报告可接单。失败保留已创建 ID，不重复 create；不自动删设备或改派宿主。

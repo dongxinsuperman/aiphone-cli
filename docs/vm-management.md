@@ -3,7 +3,7 @@
 入口是 `aiphone vm android|ios|harmony`，原有 config/devices/submissions 命令和投递 JSON 不变。
 管理接口沿用后台已有请求头：仅 /api/internal/ 请求携带 Bearer，默认 dev；后台配置不同值时可用 AIPHONE_INTERNAL_TOKEN 临时覆盖。不修改接口，也不向原有公开设备、安装或投递请求追加此头。
 
-## 创建只提供四项信息
+## 创建虚拟机配置
 
 平台由命令路径确定；**别名必须由外部提供**；选择后台目录中的设备预设及该预设兼容的系统。
 不生成别名、不自动选机型、不自动选最新系统、不按在线设备猜测配置。
@@ -16,7 +16,7 @@ aiphone vm android catalog --brand xiaomi --q 13 --limit 20
 aiphone vm android preset <精确预设ID或名称>
 aiphone vm android systems <精确预设ID或名称>
 
-# 预览内部固定展开的配置；不探查 Agent、不创建
+# 预览创建配置
 aiphone vm android create --alias 支付回归01 --preset <精确预设ID> --os 13 --dry-run
 
 # 创建配置；显式 --start --wait 才沿用后台探查下发并等待可接单
@@ -26,6 +26,16 @@ aiphone vm ios create --alias 苹果回归01 --preset "iPhone 17" --os 26.0 --st
 
 示例不表示这些组合当前有宿主可承接；需以实时目录及实际启动结果为准。
 预览和创建结果里的 payload 是程序内部生成结果，用于解释；不是接受完整参数输入的入口。
+
+创建时可选 `--orientation` 与 `--fold-state`。后者接受 `folded`（折叠）和 `unfolded`（展开）。
+
+| 平台 | `--orientation` | `--fold-state` |
+|---|---|---|
+| Android | `portrait`、`landscape`、`landscape_left`、`landscape_right`、`portrait_reverse`，默认 `portrait` | 需要目录的 `foldable_api_level`，由该字段确定兼容系统，显式指定的 `--os` 必须匹配 |
+| 鸿蒙 | `0` 模拟器默认、`1` 左转 90°、`2` 旋转 180°、`3` 右转 90° | 适用于 `Foldable`，默认展开 |
+| iOS | `portrait`、`landscape_left`、`landscape_right`，缺省由 Simulator 决定 | 需要 iPhone Duo 及其专用镜像，缺省由 Simulator 决定 |
+
+省略两个参数时沿用原创建默认值。显式选择的姿态以创建回包为准，回包不一致时命令保留实例 ID 并停止后续启动。
 
 ## 设备库查询：少量输入，丰富选择
 
@@ -37,9 +47,9 @@ Android 详情区分真机参考 reference_spec 和默认模拟器配置 vm_spec
 
 | 平台 | 预设与系统约束 | 固定参数 |
 |---|---|---|
-| Android | 仅后台 verified 且有可创建 API 版本的设备画像；仅可选择画像 sdk_versions 中且后台版本菜单支持的系统。支持 Android 名称、版本号或 api-N 标识。 | 屏幕宽高/密度取画像；默认内存 3GB，可用 --memory 指定 2–32 GB 整数；4 核、8GB 存储、Google APIs、ABI 自动、host GPU、竖屏、无代理、默认传感器、后台既有 discard_changes 策略。覆盖策略和自定义模式不开放为第一版创建预设。 |
-| iOS | 沿用后台 Apple 机型目录及 min/max runtime 过滤；先选机型，再选择兼容 runtime，不任意组合。 | Apple 机型原生规格，不提供额外硬件配置。 |
-| 鸿蒙 | 仅支持有 supported_image_ids 且存在创建方法的官方机型；系统镜像必须同设备类型、creatable 且在兼容表内。 | 机型屏幕参数、默认 3GB RAM，可用 --memory 指定 2–32 GB 整数、8GB 存储、完整冷启动、折叠屏初始展开。 |
+| Android | 使用后台 verified 画像的 `sdk_versions` 与 `foldable_api_level`，支持 Android 名称、版本号或 api-N 标识。 | 屏幕宽高/密度取画像；默认内存 3GB，可用 --memory 指定 2–32 GB 整数；4 核、8GB 存储、Google APIs、ABI 自动、host GPU、无代理、默认传感器、后台既有 discard_changes 策略。 |
+| iOS | 使用 Apple 机型目录的版本范围及专用镜像限制。 | Apple 机型原生规格。 |
+| 鸿蒙 | 仅支持有 supported_image_ids 且存在创建方法的官方机型；系统镜像必须同设备类型、creatable 且在兼容表内。 | 机型屏幕参数、默认 3GB RAM，可用 --memory 指定 2–32 GB 整数、8GB 存储、完整冷启动。 |
 
 服务端最终校验仍保留；不支持的组合在写入前拒绝。后台菜单有约束时 CLI 也应用，不因服务端未拦而放开。
 本版不构建「当前 Agent 能创建的预设列表」，不逐预设实时探查。目录兼容和宿主可执行是两件事。

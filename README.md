@@ -77,7 +77,7 @@ aiphone apps tasks retry <taskId> --wait
 
 ## 三端模拟器管理
 
-新增独立入口 `aiphone vm android|ios|harmony`，原有命令不变。创建仅选择外部必填别名、后台设备预设和兼容系统版本，不接受完整 JSON 或自定义硬件参数：
+三端虚拟机入口是 `aiphone vm android|ios|harmony`。创建使用外部必填别名、后台设备预设和兼容系统版本，可用 `--orientation` 设置启动方向，用 `--fold-state` 设置受支持机型的启动折叠形态。
 
 ```bash
 aiphone vm android catalog --brand xiaomi --q 13
